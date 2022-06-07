@@ -20,7 +20,6 @@ int prev_ch = -1;
 
 int main(int argc, char **argv) {
     int res = 0;
-
     if (argc > 1) {
         while (1) {
             int c;
@@ -29,7 +28,7 @@ int main(int argc, char **argv) {
                                                    {"number", 0, NULL, 'n'},
                                                    {"squeeze-blank", 0, NULL, 's'},
                                                    {0, 0, 0, 0}};
-            c = getopt_long(argc, argv, "vbenst", long_options, &option_ind);
+            c = getopt_long(argc, argv, "vbenstET", long_options, &option_ind);
             if (c == -1 || (res = check_opt(c))) {
                 break;
             }
@@ -82,12 +81,12 @@ int check_opt(int c) {
             tabs = 1;
             verbose = 1;
             break;
-        // case 'E':
-        //     ends = 1;
-        //     break;
-        // case 'T':
-        //     tabs = 1;
-        //     break;
+        case 'E':
+            ends = 1;
+            break;
+        case 'T':
+            tabs = 1;
+            break;
         case 'v':
             verbose = 1;
             break;
@@ -170,7 +169,13 @@ int output(FILE *f) {
                 printf("M-^?");
             }
         } else {
-            printf("%c", ch);
+            if (ch == 10 && ends) {
+                printf("$\n");
+            } else if (ch == 9 && tabs) {
+                printf("^I");
+            } else {
+                printf("%c", ch);
+            }
         }
         prev_ch = ch;
     }

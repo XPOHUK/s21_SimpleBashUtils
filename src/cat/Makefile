@@ -1,13 +1,9 @@
 .PHONY: all cpplint clean rebuild
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-    CMD = xdg-open ./coverage_report.html
-endif
-ifeq ($(UNAME_S),Darwin)
-    CMD = open ./coverage_report.html
-endif
+
 CFLAGS = -Wall -Wextra -Werror
 LDFLAGS = -O0 -std=c11 -pedantic -Wno-stringop-truncation -ftrapv -Wundef -Wformat=2 -fanalyzer
+
+all: cpplint s21_cat
 
 s21_cat: s21_cat.o s21_cat.h
 	gcc s21_cat.o -o $@
@@ -19,6 +15,7 @@ test: CFLAGS += -fsanitize=address
 test: LDFLAGS += -fsanitize=address
 test: s21_cat.o s21_cat.h
 	gcc $(LDFLAGS) s21_cat.o -o s21_cat
+	./t_cat.sh
 	python ./s21_cat_tests.py
 	make clean
 

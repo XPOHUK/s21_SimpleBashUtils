@@ -25,7 +25,9 @@ flags = {
     '-n',
     '-s',
     '-v',
-    '-t'}
+    '-t',
+    '-T',
+    '-E'}
 
 all_var = list(combinations_with_replacement(flags, len(flags)))
 
