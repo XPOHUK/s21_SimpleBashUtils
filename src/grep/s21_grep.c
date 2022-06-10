@@ -35,22 +35,22 @@ int main(int argc, char **argv) {
     if (!res) {
         if (optind == argc) {
             fprintf(stderr, "no files in arguments");
-
             res = 1;
         } else {
             // Если нет флага -f или -e, то первый аргумент это паттерн
             if (!(s.f_flag) && !(s.e_flag)) {
-                pattern = argv[optind++];
+                pattern = argv[optind++];  // Надо ли освобождать паттерн? Наверное нет.
                 s.expr_len++;
                 char **tmp = reallocarray(s.expr, s.expr_len, sizeof(char *));
                 if (tmp) {
                     s.expr = tmp;
-                    s.expr[s.expr_len - 1] = pattern;
+                    char *patt_copy = calloc(sizeof(char), strlen(pattern) + 1);
+                    strcpy(patt_copy, pattern);
+                    s.expr[s.expr_len - 1] = patt_copy;
                 }
             }
-            regex_t *compiled = malloc(sizeof(regex_t) * s.expr_len);
+            regex_t *compiled = malloc(sizeof(regex_t) * s.expr_len);  // Требуется очистка
             comp_regexs(&s, compiled);
-            // test_flags(&s);
 
             if (argc - optind == 1) s.h_flag = 1;
             while (optind < argc) {
@@ -75,7 +75,17 @@ int main(int argc, char **argv) {
 #endif
                 }
             }
+            if (s.expr) {
+                for (int i = 0; i < s.expr_len; i++) {
+                    free(s.expr[i]);
+                    regfree(&compiled[i]);
+                }
+                free(s.expr);
+                free(compiled);
+            }
         }
+
+        // free(&s);
     }
     return res;
 }
@@ -90,7 +100,9 @@ int check_opt(t_parsed *s, int c, char *optarg) {
             tmp = reallocarray(s->expr, s->expr_len, sizeof(char *));
             if (tmp) {
                 s->expr = tmp;
-                s->expr[s->expr_len - 1] = optarg;
+                char *optarg_copy = calloc(sizeof(char), strlen(optarg) + 1);
+                strcpy(optarg_copy, optarg);
+                s->expr[s->expr_len - 1] = optarg_copy;
             } else {
                 // Ошибка выделения памяти
             }
@@ -186,16 +198,9 @@ int read_expr(t_parsed *s, char *file_name) {
                 res = 1;
             }
         }
+        fclose(f);
     }
     return res;
-}
-
-void test_flags(t_parsed *s) {
-    printf("ints: %d %d %d %d %d %d %d %d %d %d\n", s->e_flag, s->i_flag, s->v_flag, s->c_flag, s->l_flag,
-           s->n_flag, s->h_flag, s->s_flag, s->f_flag, s->o_flag);
-    for (int i = 0; i < s->expr_len; i++) {
-        printf("pattern: %s\n", (s->expr)[i]);
-    }
 }
 
 int read_line(FILE *f, char **str) {
@@ -262,6 +267,7 @@ int proc_file(FILE *f, regex_t *compiled, t_parsed *s, char *file_name) {
             lines_count++;
             res = proc_line(compiled, str, s, file_name, lines_count, &match_count);
             // printf("Res in proc_file: %d\n", res);
+            free(str);
             if (res != 0) break;
         }
     }
@@ -328,7 +334,7 @@ int proc_o_flag(char *str, t_parsed *s, char *file_name, int line_number, regex_
     // printf("Str: %s\n", str);
     int f_started = 0;
     size_t nmatch = 1;
-    regmatch_t pmatch[nmatch];
+    regmatch_t pmatch[1];
     regoff_t off, end;
     for (int i = 0; i < s->expr_len; i++) {
         if (s->expr[i][0] != '\0') {
@@ -356,6 +362,7 @@ int proc_o_flag(char *str, t_parsed *s, char *file_name, int line_number, regex_
         char *part = calloc(sizeof(char), (end - off + 1));
         strncpy(part, str + off, end - off);
         output_line(part, s, file_name, line_number);
+        free(part);
         if (len - end > 0) proc_o_flag(str + end, s, file_name, line_number, compiled);
     }
     return res;
