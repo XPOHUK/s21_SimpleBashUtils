@@ -3,7 +3,7 @@
 CFLAGS = -Wall -Wextra -Werror
 LDFLAGS = -O0 -std=c11 -pedantic -Wno-stringop-truncation -ftrapv -Wundef -Wformat=2 -fanalyzer
 
-all: cpplint s21_grep
+all: s21_grep
 
 s21_grep: s21_grep.o s21_grep.h
 	gcc s21_grep.o -o $@
