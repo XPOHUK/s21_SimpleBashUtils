@@ -12,11 +12,6 @@
 
 #define MAX_ERR_LENGTH 80
 
-// #ifdef __linux__
-// int line_count;
-// int prev_ch = -1;
-// #endif
-
 int main(int argc, char **argv) {
     t_parsed s = {0};
     int res = 0;
@@ -39,7 +34,7 @@ int main(int argc, char **argv) {
         } else {
             // Если нет флага -f или -e, то первый аргумент это паттерн
             if (!(s.f_flag) && !(s.e_flag)) {
-                pattern = argv[optind++];  // Надо ли освобождать паттерн? Наверное нет.
+                pattern = argv[optind++];
                 s.expr_len++;
                 char **tmp = reallocarray(s.expr, s.expr_len, sizeof(char *));
                 if (tmp) {
@@ -49,7 +44,7 @@ int main(int argc, char **argv) {
                     s.expr[s.expr_len - 1] = patt_copy;
                 }
             }
-            regex_t *compiled = malloc(sizeof(regex_t) * s.expr_len);  // Требуется очистка
+            regex_t *compiled = malloc(sizeof(regex_t) * s.expr_len);
             comp_regexs(&s, compiled);
 
             if (argc - optind == 1) s.h_flag = 1;
@@ -84,8 +79,6 @@ int main(int argc, char **argv) {
                 free(compiled);
             }
         }
-
-        // free(&s);
     }
     return res;
 }
@@ -105,6 +98,7 @@ int check_opt(t_parsed *s, int c, char *optarg) {
                 s->expr[s->expr_len - 1] = optarg_copy;
             } else {
                 // Ошибка выделения памяти
+                res = 1;
             }
             break;
         case 'i':
@@ -112,6 +106,7 @@ int check_opt(t_parsed *s, int c, char *optarg) {
             break;
         case 'v':
             s->v_flag = 1;
+// Сбросить о-флаг на маке
 #ifndef __linux__
             s->o_flag = 0;
 #endif
@@ -140,7 +135,6 @@ int check_opt(t_parsed *s, int c, char *optarg) {
         case 'f':
             s->f_flag = 1;
             res = read_expr(s, optarg);
-            // printf("expr in case: %s\n", (s->expr)[0]);
             break;
         case 'o':
 #ifdef __linux__
@@ -150,7 +144,6 @@ int check_opt(t_parsed *s, int c, char *optarg) {
 #endif
             break;
         case '?':
-            fprintf(stderr, "bad option\n");
             res = 1;
             break;
         default:
@@ -189,12 +182,12 @@ int read_expr(t_parsed *s, char *file_name) {
                 if (tmp) {
                     s->expr = tmp;
                     (s->expr)[(s->expr_len) - 1] = str;
-                    // printf("expr: %s\n", (s->expr)[(s->expr_len) - 1]);
                 } else {
-                    // Ошибка выделения памяти
+                    fprintf(stderr, "Error reallocating memory.");
+                    res = 1;
                 }
             } else {
-                // Error read line
+                fprintf(stderr, "Error read line.");
                 res = 1;
             }
         }
@@ -232,9 +225,10 @@ int read_line(FILE *f, char **str) {
 
             ch = fgetc(f);
         }
-        //        if (ch == 10) {
         (*str)[count] = '\0';
-        /*} else*/ if (ch == EOF) { res = 2; }
+        if (ch == EOF) {
+            res = 2;
+        }
     }
     return res;
 }
@@ -262,13 +256,13 @@ int proc_file(FILE *f, regex_t *compiled, t_parsed *s, char *file_name) {
     while (!feof(f)) {
         char *str = NULL;
         int read_res = read_line(f, &str);
-        // printf("String: %s\n", str);
         if (read_res == 0 || read_res == 2) {
             lines_count++;
             res = proc_line(compiled, str, s, file_name, lines_count, &match_count);
-            // printf("Res in proc_file: %d\n", res);
             free(str);
             if (res != 0) break;
+        } else {
+            fprintf(stderr, "Error read line.");
         }
     }
 
@@ -286,14 +280,12 @@ int proc_line(regex_t *compiled, char *str, t_parsed *s, char *file_name, int li
     int res = 0;
     for (int i = 0; i < s->expr_len; i++) {
         res = regexec(&(compiled[i]), str, 0, NULL, 0);
-        // printf("res: %d\nString: %s\nFile: %s\n", res, str, file_name);
         if ((res == 0 && !(s->v_flag)) || (res == REG_NOMATCH && s->v_flag && s->expr_len - i == 1)) {
             if (s->c_flag) {
                 (*match_count)++;
                 res = 0;  // Строка посчитана, остальные паттерны можно не проверять
             } else if (s->l_flag) {
                 res = 3;  // Можно переходить к следующему файлу
-                // printf("%s\n", file_name);
             } else if (s->o_flag) {
                 proc_o_flag(str, s, file_name, line_number, compiled);
                 res = 0;
@@ -307,7 +299,7 @@ int proc_line(regex_t *compiled, char *str, t_parsed *s, char *file_name, int li
             break;
         } else if (res != REG_NOMATCH) {
             regerror(res, &(compiled[i]), err_msg, MAX_ERR_LENGTH);
-            printf("Error blia: %s.\n", err_msg);
+            printf("Error in proc_line: %s.\n", err_msg);
             res = 1;
         } else {
             res = 0;
@@ -331,7 +323,6 @@ int output_line(char *str, t_parsed *s, char *file_name, int line_number) {
 int proc_o_flag(char *str, t_parsed *s, char *file_name, int line_number, regex_t *compiled) {
     int res = 0;
     int len = strlen(str);
-    // printf("Str: %s\n", str);
     int f_started = 0;
     size_t nmatch = 1;
     regmatch_t pmatch[1];
@@ -340,7 +331,6 @@ int proc_o_flag(char *str, t_parsed *s, char *file_name, int line_number, regex_
         if (s->expr[i][0] != '\0') {
             res = regexec(&(compiled[i]), str, nmatch, pmatch, 0);
             if (res == 0) {
-                // printf("Pattern: %s\n", s->expr[i]);
                 if (!f_started) {
                     off = pmatch[0].rm_so;
                     end = pmatch[0].rm_eo;
