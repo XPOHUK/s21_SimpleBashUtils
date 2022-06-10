@@ -1,4 +1,4 @@
-.PHONY: all cpplint clean rebuild
+.PHONY: all cpplint cppcheck clean rebuild
 
 CFLAGS = -Wall -Wextra -Werror
 LDFLAGS = -O0 -std=c11 -pedantic -Wno-stringop-truncation -ftrapv -Wundef -Wformat=2 -fanalyzer
@@ -29,5 +29,8 @@ cpplint:
 	python3 ../../materials/linters/cpplint.py --extensions=c *.h *.c
 	rm ./CPPLINT.cfg
 
+cppcheck:
+	cppcheck --enable=all --suppress=missingIncludeSystem *.c *.h
+	
 clean:
 	rm -f *.o test-valg s21_cat
